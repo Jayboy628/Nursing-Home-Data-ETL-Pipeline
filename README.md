@@ -1,7 +1,6 @@
-<<<<<<< HEAD
-# Nursing-Home-Data-ETL-Pipeline
 =======
 # Modern ETL Pipeline with AWS, Snowflake & PySpark
+=======
 
 ### 📘 Project Summary
 Looking to build a robust, automated ETL pipeline? This project provides a step-by-step guide to designing and deploying a scalable data pipeline using AWS, Snowflake, and PySpark.
