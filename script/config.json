@@ -1,0 +1,14 @@
+
+{
+    "GOOGLE_DRIVE_FOLDER_ID": "1KcKtX74sOmjtlxcdqEYfzX_3a2-wG6xM",
+    "S3_BUCKET": "nh-source-657082399901-dev",
+    "SERVICE_ACCOUNT_FILE": "drive-service-account-452003-0f5aaba389c1.json",
+    "DRY_RUN": false,
+    "FILE_TYPE_MAPPING": {
+      "ProviderInfo": "raw/provider_info/",
+      "Penalties": "raw/penalties/",
+      "SurveySummary": "raw/survey_summary/",
+      "QualityMDS": "raw/qualitymsr_mds/",
+      "_DEFAULT": "raw/other/"
+    }
+  }

@@ -1,0 +1,139 @@
+
+        {
+          "Comment": "NH ETL Pipeline",
+          "StartAt": "SyncDriveToS3",
+          "States": {
+            "SyncDriveToS3": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectPrefix}-sync-drive-${Environment}",
+                "Payload": {}
+              },
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "FailSyncDrive"
+                }
+              ],
+              "Next": "UniversalCleaningJob"
+            },
+            "FailSyncDrive": {
+              "Type": "Fail",
+              "Error": "SyncDriveFailed",
+              "Cause": "SyncDrive Lambda failed"
+            },
+            "UniversalCleaningJob": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": {
+                "JobName": "${ProjectPrefix}-etl-universal-cleaning-${Environment}"
+              },
+              "ResultPath": "$.UniversalCleaningResult",
+              "TimeoutSeconds": 1200,
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "FailUniversalCleaning"
+                }
+              ],
+              "Next": "WaitForCleaning"
+            },
+            "FailUniversalCleaning": {
+              "Type": "Fail",
+              "Error": "CleaningFailed",
+              "Cause": "Universal cleaning job failed"
+            },
+            "WaitForCleaning": {
+              "Type": "Wait",
+              "Seconds": 10,
+              "Next": "MoveSourceFiles"
+            },
+            "MoveSourceFiles": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectPrefix}-move-source-files-${Environment}",
+                "Payload": {}
+              },
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "FailMoveFiles"
+                }
+              ],
+              "Next": "ValidateStagingFiles"
+            },
+            "FailMoveFiles": {
+              "Type": "Fail",
+              "Error": "MoveFilesFailed",
+              "Cause": "Failed to move staged files"
+            },
+            "ValidateStagingFiles": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ProjectPrefix}-validate-staging-${Environment}",
+                "Payload": {}
+              },
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "FailValidation"
+                }
+              ],
+              "Next": "TransformInParallel"
+            },
+            "FailValidation": {
+              "Type": "Fail",
+              "Error": "ValidationFailed",
+              "Cause": "Staging validation Lambda failed"
+            },
+            "TransformInParallel": {
+              "Type": "Parallel",
+              "Branches": [
+                {
+                  "StartAt": "ProviderTransformJob",
+                  "States": {
+                    "ProviderTransformJob": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                      "Parameters": {
+                        "JobName": "${ProjectPrefix}-etl-provider-transform-${Environment}"
+                      },
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "QualityTransformJob",
+                  "States": {
+                    "QualityTransformJob": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                      "Parameters": {
+                        "JobName": "${ProjectPrefix}-etl-quality-transform-${Environment}"
+                      },
+                      "End": true
+                    }
+                  }
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "FailAll"
+                }
+              ],
+              "Next": "Success"
+            },
+            "Success": {
+              "Type": "Succeed"
+            },
+            "FailAll": {
+              "Type": "Fail",
+              "Error": "JobFailure",
+              "Cause": "One or more parallel ETL jobs failed"
+            }
+          }
+        }

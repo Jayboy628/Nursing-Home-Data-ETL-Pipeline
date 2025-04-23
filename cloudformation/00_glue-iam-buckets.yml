@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Glue IAM Role and S3 Buckets
+
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: nh
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  SourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectPrefix}-source-${AWS::AccountId}-${Environment}"
+
+  StagingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectPrefix}-staging-${AWS::AccountId}-${Environment}"
+
+  TransformBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectPrefix}-transform-${AWS::AccountId}-${Environment}"
+  
+  ProcessedBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectPrefix}-processed-${AWS::AccountId}-${Environment}"
+
+  ErrorBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectPrefix}-error-${AWS::AccountId}-${Environment}"
+
+  GlueJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectPrefix}-glue-job-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: GlueS3AccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${ProjectPrefix}-*-${AWS::AccountId}-${Environment}"
+                  - !Sub "arn:aws:s3:::${ProjectPrefix}-*-${AWS::AccountId}-${Environment}/*"
+              - Effect: Allow
+                Action: logs:*
+                Resource: "*"
+
+Outputs:
+  GlueJobRoleArn:
+    Value: !GetAtt GlueJobRole.Arn
+    Export:
+      Name: GlueJobRoleArn
+
+  SourceBucketName:
+    Value: !Ref SourceBucket
+    Export:
+      Name: SourceBucketName
+
+  StagingBucketName:
+    Value: !Ref StagingBucket
+    Export:
+      Name: StagingBucketName
+
+  TransformBucketName:
+    Value: !Ref TransformBucket
+    Export:
+      Name: TransformBucketName
+
+  ProcessedBucketName:
+    Value: !Ref ProcessedBucket
+    Export:
+      Name: ProcessedBucketName
+
+  ErrorBucketName:
+    Value: !Ref ErrorBucket
+    Export:
+      Name: ErrorBucketName

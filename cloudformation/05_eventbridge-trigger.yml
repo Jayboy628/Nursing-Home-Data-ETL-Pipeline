@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Trigger NH Step Function using EventBridge
+
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: nh
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+
+  EventInvokeStepFnRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectPrefix}-eventbridge-start-stepfn-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowStepFunctionStart
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource: "*"
+
+  DailyTriggerRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${ProjectPrefix}-etl-daily-trigger-${Environment}"
+      ScheduleExpression: "cron(0 5 * * ? *)"  # 1 AM EST
+      State: ENABLED
+      Targets:
+        - Arn: !ImportValue nh-stepfn-arn
+          Id: StartStepFunction
+          RoleArn: !GetAtt EventInvokeStepFnRole.Arn

@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Glue Jobs - Sync and Transform
+
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: nh
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+
+  UniversalCleaningJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: !Sub "${ProjectPrefix}-etl-universal-cleaning-${Environment}"
+      Role: !ImportValue GlueJobRoleArn
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${ProjectPrefix}-source-${AWS::AccountId}-${Environment}/scripts/nh-etl-universal-cleaning.py"
+        PythonVersion: "3"
+      DefaultArguments:
+        "--TempDir": !Sub "s3://${ProjectPrefix}-source-${AWS::AccountId}-${Environment}/temp/"
+        "--SOURCE_PATH": !Sub "s3://${ProjectPrefix}-source-${AWS::AccountId}-${Environment}/raw/"
+        "--STAGING_PATH": !Sub "s3://${ProjectPrefix}-staging-${AWS::AccountId}-${Environment}/staging/"
+        "--ERROR_PATH": !Sub "s3://${ProjectPrefix}-error-${AWS::AccountId}-${Environment}/error/"
+        "--enable-metrics": ""
+        "--enable-continuous-cloudwatch-log": "true"
+        "--job-language": "python"
+      GlueVersion: "3.0"
+      MaxRetries: 1
+      Timeout: 30
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+      NumberOfWorkers: 5
+      WorkerType: G.1X
+
+  ProviderTransformJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: !Sub "${ProjectPrefix}-etl-provider-transform-${Environment}"
+      Role: !ImportValue GlueJobRoleArn
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${ProjectPrefix}-source-${AWS::AccountId}-${Environment}/scripts/nh-etl-provider-transform.py"
+        PythonVersion: "3"
+      DefaultArguments:
+        "--TempDir": !Sub "s3://${ProjectPrefix}-source-${AWS::AccountId}-${Environment}/temp/"
+        "--STAGING_PATH": !Sub "s3://${ProjectPrefix}-staging-${AWS::AccountId}-${Environment}/staging/"
+        "--TRANSFORM_PATH": !Sub "s3://${ProjectPrefix}-transform-${AWS::AccountId}-${Environment}/transform/"
+        "--ERROR_PATH": !Sub "s3://${ProjectPrefix}-error-${AWS::AccountId}-${Environment}/error/"
+        "--enable-metrics": ""
+        "--enable-continuous-cloudwatch-log": "true"
+        "--job-language": "python"
+      GlueVersion: "3.0"
+      MaxRetries: 1
+      Timeout: 30
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+      NumberOfWorkers: 5
+      WorkerType: G.1X
+
+  QualityTransformJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: !Sub "${ProjectPrefix}-etl-quality-transform-${Environment}"
+      Role: !ImportValue GlueJobRoleArn
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${ProjectPrefix}-source-${AWS::AccountId}-${Environment}/scripts/nh-etl-quality-transform.py"
+        PythonVersion: "3"
+      DefaultArguments:
+        "--TempDir": !Sub "s3://${ProjectPrefix}-source-${AWS::AccountId}-${Environment}/temp/"
+        "--STAGING_PATH": !Sub "s3://${ProjectPrefix}-staging-${AWS::AccountId}-${Environment}/staging/"
+        "--TRANSFORM_PATH": !Sub "s3://${ProjectPrefix}-transform-${AWS::AccountId}-${Environment}/transform/"
+        "--ERROR_PATH": !Sub "s3://${ProjectPrefix}-error-${AWS::AccountId}-${Environment}/error/"
+        "--enable-metrics": ""
+        "--enable-continuous-cloudwatch-log": "true"
+        "--job-language": "python"
+      GlueVersion: "3.0"
+      MaxRetries: 1
+      Timeout: 30
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+      NumberOfWorkers: 5
+      WorkerType: G.1X

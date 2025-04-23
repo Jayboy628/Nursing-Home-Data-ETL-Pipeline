@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EventBridge rule to trigger Lambda after Glue job success
+
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: nh
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  PostGlueEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${ProjectPrefix}-post-glue-trigger-${Environment}"
+      EventPattern:
+        source:
+          - aws.glue
+        detail-type:
+          - Glue Job State Change
+        detail:
+          state:
+            - SUCCEEDED
+          jobName:
+            - !Sub "${ProjectPrefix}-etl-universal-cleaning-${Environment}"  # <-- Check your logic here
+      Targets:
+        - Arn: !ImportValue nh-move-source-files-arn
+          Id: MoveSourceFilesFunction
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !ImportValue nh-move-source-files-arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt PostGlueEventRule.Arn

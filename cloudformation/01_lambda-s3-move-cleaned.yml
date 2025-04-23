@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda to sync Google Drive to S3 and move cleaned files from staging to processed
+
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: nh
+  Environment:
+    Type: String
+    Default: dev
+  LambdaBucket:
+    Type: String
+    Description: S3 bucket where the Lambda deployment ZIP is uploaded
+
+Resources:
+
+  SyncDriveLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectPrefix}-lambda-drive-sync-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DriveSyncAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource: "arn:aws:s3:::*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+
+  MoveCleanedFilesLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectPrefix}-lambda-move-cleaned-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3MoveAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: "arn:aws:s3:::*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+
+  GoogleDriveDepsLayer:
+      Type: AWS::Lambda::LayerVersion
+      Properties:
+        LayerName: !Sub "${ProjectPrefix}-google-deps-${Environment}"
+        Description: Google API dependencies for Drive Sync
+        Content:
+          S3Bucket: nh-source-657082399901-dev
+          S3Key: lib/google_drive_dependencies.zip
+        CompatibleRuntimes:
+          - python3.11
+
+  ValidateStagingFilesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectPrefix}-lambda-validate-staging-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3MoveAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: "arn:aws:s3:::*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+
+  SyncDriveToS3Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-sync-drive-${Environment}"
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt SyncDriveLambdaRole.Arn
+      Runtime: python3.11
+      Timeout: 900
+      MemorySize: 256
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub scripts/sync-drive-to-s3.zip
+      Layers:
+        - !Ref GoogleDriveDepsLayer
+      Environment:
+        Variables:
+          SOURCE_BUCKET: !Sub "${ProjectPrefix}-source-${AWS::AccountId}-${Environment}"
+          S3_BUCKET: !Sub "${ProjectPrefix}-source-${AWS::AccountId}-${Environment}"
+          CONFIG_KEY: "scripts/config.json"
+          SERVICE_ACCOUNT_KEY: "scripts/drive-service-account-452003-0f5aaba389c1.json"
+          MANIFEST_KEY: "metadata/processed_files.json"
+          DRY_RUN: "false"
+
+  MoveSourceFilesFunction:  
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-move-sources-files-${Environment}"
+      Handler: move_sources_files.lambda_handler
+      Role: !GetAtt MoveCleanedFilesLambdaRole.Arn
+      Runtime: python3.11
+      Timeout: 300
+      MemorySize: 128
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub scripts/move_sources_files.zip
+      Environment:
+        Variables:
+          S3_BUCKET: !Sub "${ProjectPrefix}-source-${AWS::AccountId}-${Environment}"
+          SOURCE_BUCKET: !Sub "${ProjectPrefix}-source-${AWS::AccountId}-${Environment}"
+          PROCESSED_BUCKET: !Sub "${ProjectPrefix}-processed-${AWS::AccountId}-${Environment}"
+          ERROR_BUCKET: !Sub "${ProjectPrefix}-error-${AWS::AccountId}-${Environment}"
+          PREFIX: ""
+          S3_FOLDERS: "provider_info,qualitymsr_mds,survey_summary,penalties"
+
+  ValidateStagingFilesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-validate-staging-${Environment}"
+      Handler: validate_staging.lambda_handler
+      Role: !GetAtt ValidateStagingFilesRole.Arn
+      Runtime: python3.11
+      Timeout: 60
+      MemorySize: 128
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub scripts/validate_staging.zip
+      Environment:
+        Variables:
+          STAGING_BUCKET: !Sub "${ProjectPrefix}-staging-${AWS::AccountId}-${Environment}"
+          REQUIRED_PREFIXES: "provider_info,qualitymsr_mds,survey_summary,penalties"
+
+Outputs:
+  MoveSourceFilesFunctionArn:
+    Value: !GetAtt MoveSourceFilesFunction.Arn
+    Export:
+      Name: nh-move-source-files-arn
