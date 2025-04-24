@@ -1,6 +1,6 @@
-=======
-# Modern ETL Pipeline with AWS, Snowflake & PySpark
-=======
+
+# Modern ETL Pipeline with AWS, Snowflake & Google Drive
+----
 
 ### 📘 Project Summary
 Looking to build a robust, automated ETL pipeline? This project provides a step-by-step guide to designing and deploying a scalable data pipeline using AWS, Snowflake, and PySpark.
@@ -297,4 +297,10 @@ CALL SP_MERGE_ALL_DIMS();
 ---
 
 This setup provides a complete workflow from S3 staging to Snowflake dimensional models with automated daily refresh and logging.
->>>>>>> 8748d9a (Initial commit: README and infrastructure scripts)
+<p align="center">
+  <img src="Images/snowflake.png" alt="Snowflake Data Warehouse" width="600"/>
+</p>
+
+---
+###**Developer**
+- **Shaunjay Brown**
