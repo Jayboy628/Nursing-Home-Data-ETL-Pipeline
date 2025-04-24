@@ -302,5 +302,5 @@ This setup provides a complete workflow from S3 staging to Snowflake dimensional
 </p>
 
 ---
-###**Developer**
+### **Developer**
 - **Shaunjay Brown**
