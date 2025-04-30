@@ -17,7 +17,7 @@ This project is ideal for data engineers looking to modernize their ETL workflow
 ---
 
 <p align="center">
-  <img src="Images/NH_Data_Pipeline.png" alt="Data Pipeline Diagram" width="600"/>
+  <img src="Images/etl_stepfunction.png" alt="Data Pipeline Diagram" width="600"/>
 </p>
 
 ---
@@ -98,6 +98,10 @@ aws cloudformation deploy   --template-file cloudformation/03_glue-jobs.yml   --
 
 ### 5. 🔄 Stack: Step Function Workflow
 **File:** [`cloudformation/04_stepfunction-pipeline.yml`](cloudformation/04_stepfunction-pipeline.yml)
+
+<p align="center">
+  <img src="Images/StepFunction.png" alt="Step Function" width="600"/>
+</p>
 
 **Purpose:**
 - Orchestrates the full ETL pipeline:
