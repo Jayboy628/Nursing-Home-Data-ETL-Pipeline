@@ -1,5 +1,5 @@
 
-# Modern ETL Pipeline with AWS, Snowflake & Google Drive
+# Modern ETL Pipeline with AWS, Snowflake & PySpark
 ----
 
 ### 📘 Project Summary
